@@ -1,11 +1,11 @@
 # 简介：
 - 这里分享 NLP 的理论基础知识
 
-# Language Model 其他
+# Language Model 其他知识点
 - 为什么模型输入有最大的 Token 限制，比如 gpt-3.5-turbo 是 （4096 - max_gen_len）， LLaMA 是 （2048 - max_gen_len）？
   - 这和模型构造有关，这个限制了 K 和 V 的长度
 - Temperature 机制是什么？怎么实现的？
-  - Temperature 被抽象为：“越高模型输出就越有想象力越不按套路出牌”
+  - Temperature 被抽象为：“大于1时越高模型输出就越有想象力越不按套路出牌，小于1时越小输出越保守固定”
   - 在模型输出的 logits 输入 softmax 进行 probabilities（probs） 计算时，将 logits 除以 temperature
   - 一般模型会设置判断条件 "if temperature > 0:", 所以几乎所有模型设置 Temperature = 0 就不影响其输出分布
 - Top-P 机制是什么？怎么实现的？
@@ -17,7 +17,7 @@
   - 因为第一次生成的时候，prompt 的所有 token 是同时输入进模型的，而后续继续生成的时候，只会一个一个（Batch） token 输入进去，所以每次生成都要进行一次模型推理
 - 通常用什么来评估一个 Autoregressive Language Model 的性能？为什么？
   - 优秀的文章：Evaluation Metrics for Language Modeling
-  - "Autoregressive Language Model" 指基于 preceding token 预测 next token 从而生成 text 的 model，如 GPT。另一种是 ”Masked LM“，如 BERT。
+    - https://thegradient.pub/understanding-evaluation-metrics-for-language-models/
   - 有 Perplexity，Cross-Entropy, Bits-per-Character (BPC)
     - Perplexity（PPL），PPL 不适用于像 BERT 一样的 Masked Language Model
       - ”A measurement of how well a probability distribution or probability model predicts a sample"
@@ -30,7 +30,7 @@
       - 借用香农的一句话：if the language is translated into binary digits (0 or 1) in the most efficient way, the entropy is the average number of binary digits required per letter of the original language.
       - 所以 Average number of BPC 就是 entropy
         - 在 Pytorch，Tensorflow 中，entropy 中的对数运算不是以 2 为底，而是以 e 为底
-- Causal Language Model 和 Mask Language Model 的区别
+- Causal Language Model 和 Mask Language Model 的区别（AutoRegressive 和 AutoEncoding）
   - CLM 就是 Autoregressive LM，它是不断地预测下一个词，典之GPT
   - MLM 就是在训练的时候会将一些词给 mask 掉，让其预测，典之BERT
    

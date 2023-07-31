@@ -1,7 +1,7 @@
 # 简介：
 - 这里分享 NLP 的理论基础知识
 
-# Language Model
+# Language Model 其他
 - 为什么模型输入有最大的 Token 限制，比如 gpt-3.5-turbo 是 （4096 - max_gen_len）， LLaMA 是 （2048 - max_gen_len）？
   - 这和模型构造有关，这个限制了 K 和 V 的长度
 - Temperature 机制是什么？怎么实现的？
@@ -34,8 +34,3 @@
   - CLM 就是 Autoregressive LM，它是不断地预测下一个词，典之GPT
   - MLM 就是在训练的时候会将一些词给 mask 掉，让其预测，典之BERT
    
-
-Data Preprocessing
-- 如何处理超大语料库？如果一个语料库本身内存占用大小 825G，如 Pile，是不可能在有限资源上加载到 RAM 的
-  - 使用 memory-mapped 技术，提供大语料库一个从 RAM 和 硬盘之间的映射，使得不需要将整个语料库加载到 RAM 上去
-- Python is the language most often used for data science and deep learning applications, but when anything needs to be parallelized to be fast, it has to be written in another language. For instance, the matrix multiplications that are at the core of the model computation are written in CUDA, an optimized C library for GPUs.

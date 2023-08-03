@@ -22,7 +22,7 @@ class MultiHeadAttention(nn.Module):
 
         self.out = nn.Linear(self.n_heads * self.dk, self.embed_dim)
 
-    def forward(self, key, query, value, mask = None):
+    def forward(self, key, query, value, mask = None, cuda = True):
         
         # Get dim info
         batch_size = key.size(0)
@@ -41,7 +41,9 @@ class MultiHeadAttention(nn.Module):
         product = torch.matmul(Q, K_T)/math.sqrt(self.dk)  # (batch_size, n_heads, q_seq_len, k_seq_len)
 
         if mask is not None:
-            product = product.masked_fill(mask == 0, float(-1e20))
+            if cuda:
+                mask = mask.to('cuda')
+                product = product.masked_fill(mask == 0, float(-1e20))
 
         scores = torch.matmul(F.softmax(product, dim=-1), V)  # (batch_size, n_heads, q_seq_len, dk)
 

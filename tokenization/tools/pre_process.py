@@ -11,7 +11,7 @@ def normalization(text: str)-> str:
 
 
 # Pre-Tokenization: split by space & turn space to Ġ
-def pre_tokenization(text: str)-> List[str]:
+def bpe_pre_tokenization(text: str)-> List[str]:
     tmp = ''
     opt = []
     for i in text:
@@ -25,11 +25,11 @@ def pre_tokenization(text: str)-> List[str]:
 
 
 # Synthesis
-def pre_process(texts: List[str])-> List[str]:
+def bpe_pre_process(texts: List[str])-> List[str]:
     opt = []
     for text in texts:
         text = normalization(text)
-        text_lst = pre_tokenization(text)
+        text_lst = bpe_pre_tokenization(text)
         opt.extend(text_lst)
     return opt
 

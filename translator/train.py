@@ -1,6 +1,5 @@
 
 import time
-import tqdm
 import torch
 import argparse
 
@@ -146,6 +145,8 @@ def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, schedu
                     torch.cuda.empty_cache()
             else:
                 raise exception
+        
+        print('/', end='', flush=True)
             
     epoch_mean_loss = total_loss / len(train_dataloader)
     epoch_acc = epoch_correct_num / epoch_total_num
@@ -174,7 +175,7 @@ def train(model, tokenizer, train_dataset, args):
 
     train_losses = []
     print('Start Training!')
-    for epoch in tqdm(range(args.epochs)):
+    for epoch in range(args.epochs):
         # ======== Train ======= #
         train_loss = train_epoch(model, train_loader, tokenizer, criterion, optimizer, scheduler, epoch, args)
         train_losses.append(train_loss)
@@ -184,6 +185,7 @@ def train(model, tokenizer, train_dataset, args):
         # ======= SAVE ======= #
         if epoch % args.save_steps == 0 and epoch != 0:
             torch.save(model.state_dict(), f'{args.save_model_path}epoch{epoch}.pth')
+            print(f'Save model at epoch{epoch}!')
 
     return train_losses
 

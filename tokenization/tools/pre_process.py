@@ -30,7 +30,7 @@ def bpe_pre_process(texts: List[str])-> List[str]:
     for text in texts:
         text = normalization(text)
         text_lst = bpe_pre_tokenization(text)
-        opt.extend(text_lst)
+        opt.append(text_lst)
     return opt
 
     

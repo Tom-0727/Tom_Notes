@@ -32,6 +32,8 @@ def set_args():
                         help='Train the model')
     parser.add_argument('--validate', action='store_true',
                         help='Validate the model')
+    parser.add_argument('--validate_steps', default=1, type=int, required=False,
+                        help='Steps of epoch to validate model')
 
     parser.add_argument('--ptm_pth', default='./models/', type=str, required=False,
                         help='Path to pretrained model')
@@ -182,14 +184,61 @@ def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, schedu
     epoch_acc = epoch_correct_num / epoch_total_num
     epoch_time = time.time() - epoch_start_time
 
-    broadcast_info = f'Epoch{epoch}: Loss {epoch_mean_loss:.4f} | Acc {epoch_acc:.4f} | Time {epoch_time:.2f}'
+    broadcast_info = f'Training_epoch{epoch}: Loss {epoch_mean_loss:.4f} | Acc {epoch_acc:.4f} | Time {epoch_time:.2f}'
     print(broadcast_info)
 
     return epoch_mean_loss
 
 
-def validate(model, test_dataloader, tokenizer, criterion, epoch, args):
-    pass
+def validate_epoch(model, test_dataloader, tokenizer, criterion, epoch, args):
+    model.eval()
+
+    total_loss = 0
+    epoch_correct_num = 0
+    epoch_total_num = 0
+    epoch_start_time = time.time()
+
+    try:
+        with torch.no_grad():
+            for batch_idx, (src, trg) in enumerate(test_dataloader):
+                # ============== Prepare Data ============== #
+                # List[str] -> List[int]
+                src = tokenizer.encode(src)
+                trg = tokenizer.encode(trg)
+
+                # Dynamic Padding
+                src = dynamic_padding(src, pad_id=tokenizer.pad_id, max_seq_len=args.max_len)
+                trg = dynamic_padding(trg, pad_id=tokenizer.pad_id, max_seq_len=args.max_len)
+
+                # List[int] -> Tensor with dtype=torch.long & to GPU
+                src = torch.tensor(src, dtype=torch.long).to(args.device)
+                trg = torch.tensor(trg, dtype=torch.long).to(args.device)
+                
+                opt = model(src, trg)  # batch_size, seq_len, vocab_size
+
+                correct_num, total_num = acc_count(opt, trg, tokenizer.pad_id)
+                epoch_correct_num += correct_num
+                epoch_total_num += total_num
+
+                # Calculate Loss
+                loss = criterion(opt.view(-1, opt.size(-1)), trg.view(-1))
+                loss = loss.mean()
+                total_loss += loss.item()
+            
+            epoch_mean_loss = total_loss / len(test_dataloader)
+            epoch_acc = epoch_correct_num / epoch_total_num
+            epoch_time = time.time() - epoch_start_time
+
+            broadcast_info = f'Validating_epoch{epoch}: Loss {epoch_mean_loss:.4f} | Acc {epoch_acc:.4f} | Time {epoch_time:.2f}'
+            print(broadcast_info)
+
+    except RuntimeError as exception:
+        if "out of memory" in str(exception):
+            if hasattr(torch.cuda, 'empty_cache'):
+                torch.cuda.empty_cache()
+        else:
+            raise exception
+            
 
 
 
@@ -219,8 +268,9 @@ def train(model, tokenizer, train_dataset, args):
             train_losses.append(train_loss)
 
         # ======== Validate ====== #
-        if args.validate:
+        if args.validate and (epoch % args.validate_steps == 0):
             print(f'Epoch{epoch} start validating...')
+            validate_epoch(model, train_loader, tokenizer, criterion, epoch, args)
 
 
         # ======= SAVE ======= #

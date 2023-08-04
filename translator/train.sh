@@ -13,6 +13,7 @@ python3 train.py \
     --lr 0.000026 \
     --eps 0.0000000009 \
     --train --validate \
+    --validate_steps 1 \
     --info \
     # --load_ptm \
     # --no_cuda

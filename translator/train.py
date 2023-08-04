@@ -27,7 +27,7 @@ def set_args():
 
     parser.add_argument('--pretrained_model', default='./models/', type=str, required=False,
                         help='Path to pretrained model')
-    parser.add_argument('--save_steps', default=100, type=int, required=False,
+    parser.add_argument('--save_steps', default=10, type=int, required=False,
                         help='Steps of epoch to save model')
     parser.add_argument('--save_model_path', default='./models/', type=str, required=False,
                         help='Path to save model')
@@ -39,9 +39,9 @@ def set_args():
     parser.add_argument('--max_len', default=256, type=int, required=False,
                         help='Max length of input sequence while training, # len(input_ids) < max_len')
 
-    parser.add_argument('--epochs', default=1, type=int, required=False,
+    parser.add_argument('--epochs', default=20, type=int, required=False,
                         help='Epochs to train')
-    parser.add_argument('--batch_size', default=16, type=int, required=False,
+    parser.add_argument('--batch_size', default=64, type=int, required=False,
                         help='Batch size')
     parser.add_argument('--num_workers', type=int, default=0,
                         help="parameter of DataLoader, used to set multi-thread, 0 is going without multi-thread")
@@ -103,6 +103,8 @@ def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, schedu
 
     for batch_idx, (src, trg) in enumerate(train_dataloader):
         try:
+            # ============== Prepare Data ============== #
+            data_pre_start = time.time()
             # List[str] -> List[int]
             src = tokenizer.encode(src)
             trg = tokenizer.encode(trg)
@@ -111,13 +113,18 @@ def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, schedu
             src = dynamic_padding(src, pad_id=tokenizer.pad_id, max_seq_len=args.max_len)
             trg = dynamic_padding(trg, pad_id=tokenizer.pad_id, max_seq_len=args.max_len)
 
-            # List[int] -> Tensor with dtype=torch.int32 & to GPU
+            # List[int] -> Tensor with dtype=torch.long & to GPU
             src = torch.tensor(src, dtype=torch.long).to(args.device)
             trg = torch.tensor(trg, dtype=torch.long).to(args.device)
 
-            # Forward
+            print(f'Prepare Data: {time.time() - data_pre_start:.2f}s')
+            # =============== Forward ================== #
+            forward_start = time.time()
             opt = model(src, trg)  # batch_size, seq_len, vocab_size
+            print(f'Forward: {time.time() - forward_start:.2f}s')
 
+            # =============== Backward ================= #
+            backward_start = time.time()
             # Calculate Accuracy
             correct_num, total_num = acc_count(opt, trg, tokenizer.pad_id)
 
@@ -131,12 +138,15 @@ def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, schedu
             total_loss += loss.item()
 
             loss.backward()
+            print(f'Backward: {time.time() - backward_start:.2f}s')
 
-            # Update
+            # ================= Update =================== #
+            update_start = time.time()
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
-
+            print(f'Update: {time.time() - update_start:.2f}s')
+            
             del src, trg, opt
 
         except RuntimeError as exception:
@@ -146,7 +156,7 @@ def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, schedu
             else:
                 raise exception
         
-        print('/', end='', flush=True)
+        # print('/', end='', flush=True)
             
     epoch_mean_loss = total_loss / len(train_dataloader)
     epoch_acc = epoch_correct_num / epoch_total_num
@@ -167,7 +177,6 @@ def train(model, tokenizer, train_dataset, args):
         pin_memory = True
     )
 
-    
     
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, eps=args.eps)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: epoch/ args.warmup_steps if epoch < args.warmup_steps else (1.0 - epoch / args.epochs) if epoch < args.epochs else 0.0)
@@ -195,9 +204,12 @@ def main():
 
     args.cuda = torch.cuda.is_available() and (not args.no_cuda)
     device = 'cuda' if args.cuda else 'cpu'
+    print('Using Device: ', device)
+    print(args.device)
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device
     args.device = device  # This is for the functions defined above, the args would transfer to the functions later
 
+    
     bpe_tokenizer = BPETokenizer()
     bpe_tokenizer.load(args.tokenizer_pth)
 
@@ -208,6 +220,8 @@ def main():
                     num_layers = 6, 
                     expansion_factor = 4,
                     n_heads = 8)
+    
+    # Move to GPU
     model = model.to(device)
 
     # Calculate the Number of parameters

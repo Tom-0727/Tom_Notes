@@ -1,22 +1,23 @@
-
+import os
+import sys
 import time
 import torch
 import argparse
 
 import torch.nn as nn
 
-from modules import *
-from transformer import *
-from torch.utils.data import DataLoader
-
-import sys
+# Append Package Path
 sys.path.append('../')
 sys.path.append('../tokenization')
 
+from modules import *
+from transformer import *
 from tokenization.tools import *
 from tokenization.tokenizer import *
+from torch.utils.data import DataLoader
 
 
+# Set Arguments
 def set_args():
     parser = argparse.ArgumentParser()
 
@@ -24,13 +25,21 @@ def set_args():
                         help='GPU Setting')
     parser.add_argument('--no_cuda', action='store_true',
                         help='Train without GPU')
+    
+    parser.add_argument('--load_ptm', action='store_true',
+                        help='Load the Pretrained Model')
+    parser.add_argument('--train', action='store_true', 
+                        help='Train the model')
+    parser.add_argument('--validate', action='store_true',
+                        help='Validate the model')
 
-    parser.add_argument('--pretrained_model', default='./models/', type=str, required=False,
+    parser.add_argument('--ptm_pth', default='./models/', type=str, required=False,
                         help='Path to pretrained model')
     parser.add_argument('--save_steps', default=10, type=int, required=False,
                         help='Steps of epoch to save model')
     parser.add_argument('--save_model_path', default='./models/', type=str, required=False,
                         help='Path to save model')
+    
     parser.add_argument('--tokenizer_pth', default='./iwslt2013_tokenizer.pkl', type=str, required=False,
                         help='Path to the dataset for training')
     parser.add_argument('--data_dir', default='./data/iwsltenvi/', type=str, required=False,
@@ -52,12 +61,14 @@ def set_args():
                         help='Max Learning rate, it takes warmup steps to reach this rate')
     parser.add_argument('--eps', default=1.0e-09, type=float, required=False,
                         help='AdamW optimizer epsilon rate')
-    
+    parser.add_argument('--info', action = 'store_true',
+                        help='Print the information of the model')
 
     args = parser.parse_args()
     return args
 
 
+# Load Dataset
 def load_dataset(args):
     train_data, test_data = load_iwsltenvi_data(data_dir=args.data_dir)
     train_dataset = IWSLTDataset(train_data)
@@ -83,6 +94,7 @@ def dynamic_padding(batch,
     return batch
 
 
+# Count the Accuracy
 def acc_count(logits, trg, pad_id):
     # logits: batch_size, seq_len, vocab_size
     # trg: batch_size, seq_len
@@ -93,7 +105,7 @@ def acc_count(logits, trg, pad_id):
     return correct_num, total_num
     
 
-
+# The Training Process in one Epoch
 def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, scheduler, epoch, args):
     model.train()
 
@@ -106,25 +118,31 @@ def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, schedu
             # ============== Prepare Data ============== #
             data_pre_start = time.time()
             # List[str] -> List[int]
+            tokenization_start = time.time()
             src = tokenizer.encode(src)
             trg = tokenizer.encode(trg)
+            tokenization_end = time.time()
 
             # Dynamic Padding
+            dp_start = time.time()
             src = dynamic_padding(src, pad_id=tokenizer.pad_id, max_seq_len=args.max_len)
             trg = dynamic_padding(trg, pad_id=tokenizer.pad_id, max_seq_len=args.max_len)
+            dp_end = time.time()
 
             # List[int] -> Tensor with dtype=torch.long & to GPU
             src = torch.tensor(src, dtype=torch.long).to(args.device)
             trg = torch.tensor(trg, dtype=torch.long).to(args.device)
+            
+            if args.info:
+                print(f'Tokenization Time: {tokenization_end - tokenization_start:.2f} | Dynamic Padding Time: {dp_end - dp_start:.2f}', end=' ', flush=True)
 
-            print(f'Prepare Data: {time.time() - data_pre_start:.2f}s')
+            data_pre_end = time.time()
             # =============== Forward ================== #
             forward_start = time.time()
             opt = model(src, trg)  # batch_size, seq_len, vocab_size
-            print(f'Forward: {time.time() - forward_start:.2f}s')
+            forward_end = time.time()
 
             # =============== Backward ================= #
-            backward_start = time.time()
             # Calculate Accuracy
             correct_num, total_num = acc_count(opt, trg, tokenizer.pad_id)
 
@@ -138,14 +156,16 @@ def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, schedu
             total_loss += loss.item()
 
             loss.backward()
-            print(f'Backward: {time.time() - backward_start:.2f}s')
+            
 
             # ================= Update =================== #
-            update_start = time.time()
             optimizer.step()
             scheduler.step()
             optimizer.zero_grad()
-            print(f'Update: {time.time() - update_start:.2f}s')
+
+            # ============== Print Info ================= #
+            if args.info:
+                print(f'Data Preparation Time: {data_pre_end - data_pre_start:.2f} | Forward Time: {forward_end - forward_start:.2f}')
             
             del src, trg, opt
 
@@ -168,6 +188,12 @@ def train_epoch(model, train_dataloader, tokenizer, criterion, optimizer, schedu
     return epoch_mean_loss
 
 
+def validate(model, test_dataloader, tokenizer, criterion, epoch, args):
+    pass
+
+
+
+# The Train Process
 def train(model, tokenizer, train_dataset, args):
     train_loader = DataLoader(
         train_dataset,
@@ -177,22 +203,29 @@ def train(model, tokenizer, train_dataset, args):
         pin_memory = True
     )
 
-    
+    # Training Modules
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, eps=args.eps)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: epoch/ args.warmup_steps if epoch < args.warmup_steps else (1.0 - epoch / args.epochs) if epoch < args.epochs else 0.0)
     criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_id)
 
+    # Side Information
     train_losses = []
-    print('Start Training!')
+
     for epoch in range(args.epochs):
         # ======== Train ======= #
-        train_loss = train_epoch(model, train_loader, tokenizer, criterion, optimizer, scheduler, epoch, args)
-        train_losses.append(train_loss)
+        if args.train:
+            print(f'Epoch{epoch} start training...')
+            train_loss = train_epoch(model, train_loader, tokenizer, criterion, optimizer, scheduler, epoch, args)
+            train_losses.append(train_loss)
 
         # ======== Validate ====== #
+        if args.validate:
+            print(f'Epoch{epoch} start validating...')
+
 
         # ======= SAVE ======= #
         if epoch % args.save_steps == 0 and epoch != 0:
+            os.makedirs(args.save_model_path, exist_ok=True)
             torch.save(model.state_dict(), f'{args.save_model_path}epoch{epoch}.pth')
             print(f'Save model at epoch{epoch}!')
 
@@ -204,8 +237,7 @@ def main():
 
     args.cuda = torch.cuda.is_available() and (not args.no_cuda)
     device = 'cuda' if args.cuda else 'cpu'
-    print('Using Device: ', device)
-    print(args.device)
+    print('Using :', device, 'Device: ', args.device)
     os.environ["CUDA_VISIBLE_DEVICES"] = args.device
     args.device = device  # This is for the functions defined above, the args would transfer to the functions later
 
@@ -220,6 +252,10 @@ def main():
                     num_layers = 6, 
                     expansion_factor = 4,
                     n_heads = 8)
+    
+    if args.load_ptm:
+        model.load_state_dict(torch.load(args.ptm_pth))
+        print('Load Pretrained Model from', args.ptm_pth)
     
     # Move to GPU
     model = model.to(device)

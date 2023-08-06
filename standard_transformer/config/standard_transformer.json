@@ -1,0 +1,7 @@
+{
+    "embed_dim": 512,
+    "num_layers": 6,
+    "expansion_factor": 4,
+    "num_heads": 8,
+    "max_seq_len": 256
+}

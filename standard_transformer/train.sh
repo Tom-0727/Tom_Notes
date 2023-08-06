@@ -4,8 +4,8 @@ python3 train.py \
     --save_steps 10 \
     --save_model_path ./models/ \
     --tokenizer_pth ./iwslt2013_tokenizer.pkl \
+    --model_config ./config/standard_transformer.json \
     --data_dir ./data/iwsltenvi/ \
-    --max_len 256 \
     --epochs 20 \
     --batch_size 64 \
     --num_workers 8 \

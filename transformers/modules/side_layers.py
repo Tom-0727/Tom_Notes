@@ -23,7 +23,7 @@ class PositionalEmbedding(nn.Module):
         for pos in range(max_seq_len):
             for i in range(0, self.embed_dim, 2):
                 pe[pos, i] = math.sin(pos / (10000 ** ((2 * i)/self.embed_dim)))
-                pe[pos, i + 1] = math.cos(pos / (10000 ** ((2 * (i + 1))/self.embed_dim)))
+                pe[pos, i + 1] = math.cos(pos / (10000 ** ((2 * i)/self.embed_dim)))
         pe = pe.unsqueeze(0)  # add a new dimension of size 1 at the pos 0
         self.register_buffer('pe', pe)
 

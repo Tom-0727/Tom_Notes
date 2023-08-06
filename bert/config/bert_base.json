@@ -1,0 +1,7 @@
+{
+    "num_heads": 12,
+    "embed_dim": 768,
+    "num_encoders": 12,
+    "max_seq_len": 512,
+    "expansion_factor": 4
+}

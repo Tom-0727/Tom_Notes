@@ -163,7 +163,7 @@ class BPETokenizer(Tokenizer):
         
         return self._tokenize(p_text)
 
-    def encode(self, text: Any):
+    def encode(self, text: Any)-> List[List[int]]:
         tokens_batch = self.tokenize(text)
         opt = []
         for item in tokens_batch:
@@ -173,6 +173,7 @@ class BPETokenizer(Tokenizer):
                     tmp.append(self.vocab.index(token))
                 else:
                     tmp.append(self.vocab.index('<UNK>'))
+            tmp.append(self.vocab.index('<EOS>'))
             opt.append(tmp)
         return opt
     

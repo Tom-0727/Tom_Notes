@@ -196,3 +196,11 @@ class BPETokenizer(Tokenizer):
         self.unk_id = self.vocab.index('<UNK>')
 
 
+class WordPieceTokenizer(Tokenizer):
+    def __init__(self, corpus: List[str] = None, _vocab_size: int = None):
+        super(WordPieceTokenizer, self).__init__(corpus)
+
+        self._vocab_size = _vocab_size
+
+        # Special Token
+        

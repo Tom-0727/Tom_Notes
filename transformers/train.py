@@ -294,7 +294,7 @@ def train(model, tokenizer, train_dataset, test_dataset, args):
     # Training Modules
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, eps=args.eps)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: epoch/ args.warmup_steps if epoch < args.warmup_steps else (1.0 - epoch / args.epochs) if epoch < args.epochs else 0.0)
-    criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_id)
+    criterion = nn.NLLLoss(ignore_index=tokenizer.pad_id)
 
     # Side Information
     train_losses = []

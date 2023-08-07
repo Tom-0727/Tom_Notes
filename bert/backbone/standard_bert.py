@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from bert.modules import *
+from modules import *
 from .model_heads import *
 
 
@@ -70,6 +70,7 @@ class BERT(nn.Module):
                  num_heads: int,
                  expansion_factor: int,
                  num_layers: int,
+                 max_seq_len: int,
                  vocab_size: int):
         super(BERT, self).__init__()
 
@@ -78,10 +79,11 @@ class BERT(nn.Module):
         self.num_heads = num_heads
         self.expansion_factor = expansion_factor
         self.num_layers = num_layers
+        self.max_seq_len = max_seq_len
         self.vocab_size = vocab_size
 
         # Layers
-        self.joint_embeddings = JointEmbeddings(self.embed_dim)
+        self.joint_embeddings = JointEmbeddings(self.vocab_size, self.embed_dim, self.max_seq_len)
         self.backbone = BERTBackbone(self.embed_dim, self.num_heads, self.expansion_factor, self.num_layers)
         self.mlm_head = MLMHead(self.embed_dim, self.vocab_size)
         self.nsp_head = NSPHead(self.embed_dim)

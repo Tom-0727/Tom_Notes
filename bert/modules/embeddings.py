@@ -65,10 +65,10 @@ class JointEmbeddings(nn.Module):
         self.dropout = nn.Dropout(0.1)
 
     def forward(self, x, segment_ids):
-        word_embed = self.word_embed(x)
+        word_embed = self.word_embed(x) * math.sqrt(self.embed_dim)
         pos_embed = self.pos_embed(x)
         seg_embed = self.seg_embed(segment_ids)
 
-        joint_embed = self.dropout(word_embed + pos_embed + seg_embed)
+        joint_embed = (word_embed + pos_embed + seg_embed)
 
-        return joint_embed
+        return self.dropout(joint_embed)

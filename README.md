@@ -2,6 +2,11 @@
 This is a Place to store the learning notes of Language Models 
 
 # Progress
+## Data De-Duplicates
+- TF-IDF Vectorization + KMeans Drawing + Cosine Similarity Filtering :white_check_mark:
+- TF-IDF Vectorization + Minhashing + Locality Sensitive Hashing 
+- Sentence-BERT Embedding + KMeans + SemDeDup 
+
 ## Transformer Structure (Encoder-Decoder)
 - Dataset & DataPreprocessing :white_check_mark:
   - IWSLT
